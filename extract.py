@@ -1,6 +1,10 @@
 import nbformat
 import os
 
+"""
+extract code from students' assignments,
+only questions with corresponding index will be extracted
+"""
 
 
 def is_extra(line):
@@ -11,7 +15,7 @@ def is_extra(line):
     3. start with "import"
     """
     stripped = line.strip()
-    if stripped and (stripped[0] == '#' or stripped[0] == '%' or stripped[0:6] == "import"):
+    if not stripped or (stripped[0] == '#' or stripped[0] == '%' or stripped[0:6] == "import"):
         return True
     return False
 
@@ -29,6 +33,7 @@ def get_source_without_tests(filename, question_index):
     """
     :param filename:
     :param question_index: select the index of question that needs to be compared
+                           That is, the index of the editable cells in the jupyter notebook
     :return: dictionary containing one single student's codes in one single assignment
     """
 
@@ -53,7 +58,7 @@ def get_source_without_tests(filename, question_index):
 
 def exact_every_students_code(path, question_num):
     """
-    :param filename:
+    :param path: directory to be extracted
     :param question_num: the total number of question
     :return: a dictionary containing all student's codes in one single assignment
     """
@@ -69,6 +74,8 @@ def exact_every_students_code(path, question_num):
 
 
 if __name__ == "__main__":
-    path = "testdata/Assignment 1/Assignment 1/last"
-    for i in exact_every_students_code(path, 4)['Assignment 1 last 01bb4a']:
-        print(exact_every_students_code(path, 4)['Assignment 1 last 01bb4a'][i])
+    path = "data/Assignment 1/Assignment 1/last"
+    code_dict = exact_every_students_code(path, 4)
+    for key, value in code_dict.items():
+        print(key + ':' + '\n' + value
+              + '\n****************************')
