@@ -5,6 +5,13 @@ import os
 import extract
 import NodesTypes
 
+"""
+Construct a corpus, calculate all the characteristic values in the set of students' assignments, 
+and provide the basis for the ti-idf weighting algorithm。
+Very few students' codes have grammatical errors and cannot be parsed as ast nodes, 
+so an errors are reported
+"""
+
 
 class CalculateAllVector(ast.NodeTransformer):
     def __init__(self, type_sum):
@@ -35,7 +42,7 @@ class CalculateAllVector(ast.NodeTransformer):
         try:
             nb = nbformat.read(filename, 4)
         except Exception as e:
-            print("{}{}{}".format("read_problem ", filename, e))
+            print("{}{}  {}".format("read_problem ", filename, e))
         single_file_vector = np.zeros(len(self.nodes_type))
         try:
             for c in nb.cells:
@@ -53,13 +60,13 @@ class CalculateAllVector(ast.NodeTransformer):
                             single_question_vector = self.generic_visit(node).vector
                             single_file_vector += single_question_vector
                         except SyntaxError as e:
-                            print("{}{}{}".format("SyntaxError ", filename, e))
+                            print("{}{}  {}".format("SyntaxError ", filename, e))
                         except ValueError:
                             pass
 
 
         except UnboundLocalError as e:
-            print("{}{}{}".format("UnboundLocalError ", filename, e))
+            print("{}{}  {}".format("UnboundLocalError ", filename, e))
         return single_file_vector
 
         return single_file_vector
@@ -90,7 +97,7 @@ class CalculateAllVector(ast.NodeTransformer):
             return None
 
         result = self.sum_vector[:]
-        #print(sum(result))
+        # print(sum(result))
         nodes_sum_vector = np.array([])
         current_len = 0
 
@@ -109,6 +116,6 @@ if __name__ == "__main__":
     path3 = "data"
     k = CalculateAllVector(9)
     result = k.traversing_dataset(path3)
-    print(result)
+    print(k.view_value())
     a = k.return_vector_sum()
     print(a)
