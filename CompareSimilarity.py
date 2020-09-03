@@ -6,47 +6,51 @@ import SumVector
 import AverageVector
 import NodesTypes
 
+"""
+Compare the similarity of two code fragments
+"""
 
-def sum_vector(type_sum):
-    sv = SumVector.CalculateAllVector(type_sum)
-    return sv.return_vector_sum()
 
-
-def avg_vector(type_sum, question_index, path):
+def get_average_vector(type_sum=9, question_index=3, first_child=False,
+                       path="data/Assignment 7/Root/last"):
     av = AverageVector.CalucalateAverageVector(type_sum, question_index)
-    return av.subtract_average(path)
+    average_vector = av.subtract_average(path, first_child)
+
+    # print("{} {}".format("vector after subtract_average:\n", vector_after_subtract))
+    return average_vector
 
 
 class Compare(ast.NodeTransformer):
     def __init__(self, juypter_file_1, juypter_file_2, question_index=3, type_sum=9, path=" "):
 
         self.type_sum = type_sum
+
+        self.path = path
+
         self.question_index = question_index
 
         self.nodes_type = NodesTypes.return_nodes_array(type_sum)
 
         self.code_1 = extract.get_source_without_tests(juypter_file_1, question_index)
         self.code_2 = extract.get_source_without_tests(juypter_file_2, question_index)
-
-        self.node_1 = ast.parse(self.code_1)
-        self.node_2 = ast.parse(self.code_2)
-
-        self.vector_1 = self.generic_visit(self.node_1).vector
-        self.vector_2 = self.generic_visit(self.node_2).vector
+        try:
+            self.node_1 = ast.parse(self.code_1)
+            self.node_2 = ast.parse(self.code_2)
+        except Exception:
+            pass
 
         if type_sum == 35:
-            self.sum_vector = np.array(
+            sum_vector = np.array(
                 [80641, 21977, 8191, 10157, 1476, 242303, 265217, 60918, 27235,
                  6242, 6242, 53105, 12643, 9745, 17359, 14198, 2935, 2938,
                  69784, 11081, 47510, 17974, 17639, 2325, 1948, 508, 47034,
                  1575, 2297, 5480, 837, 7262, 7262, 15368, 7630])
-        elif type_sum == 9:
-            self.sum_vector = np.array([1.26295e+05, 6.02591e+05, 2.94868e+05, 4.30670e+04, 5.44000e+02, 5.00970e+04,
-                                        1.57500e+03, 9.34200e+03, 4.13970e+04])
+            self.weight_coefficient = np.log(sum(sum_vector) / sum_vector)
 
-        if path != " ":
-            av = AverageVector.CalucalateAverageVector(type_sum, question_index)
-            self.average_vector = av.subtract_average(path_2)
+        elif type_sum == 9:
+            sum_vector = np.array([1.26295e+05, 6.02591e+05, 2.94868e+05, 4.30670e+04, 5.44000e+02, 5.00970e+04,
+                                   1.57500e+03, 9.34200e+03, 4.13970e+04])
+            self.weight_coefficient = np.log(sum(sum_vector) / sum_vector)
 
     def generic_visit(self, node):
         """
@@ -54,7 +58,6 @@ class Compare(ast.NodeTransformer):
         :return: node with a new field "vector"
         """
         # add fields to python objects
-
         node.vector = np.zeros(self.type_sum)
         ast.NodeTransformer.generic_visit(self, node)
         for general_type_index, one_general_type in enumerate(self.nodes_type):
@@ -69,6 +72,23 @@ class Compare(ast.NodeTransformer):
             # as well as case logic below.
             node.vector += a.vector
         return node
+
+    def get_name_list(self, node):
+        name_list = []
+        for sub_node in ast.walk(node):
+            if isinstance(sub_node, ast.Name):
+                name_list.append(sub_node.id)
+        return name_list
+
+    def jaccard_distance(self):
+        name_list_1 = self.get_name_list(self.node_1)
+        name_list_2 = self.get_name_list(self.node_2)
+        length = 0
+        for value in name_list_1:
+            if value in name_list_2:
+                length += 1
+        ji = (len(name_list_1) + len(name_list_2) - 2 * length) / (len(name_list_1) + len(name_list_2) - length)
+        return ji
 
     @staticmethod
     def is_same_num_child(node_1, node_2):
@@ -90,6 +110,11 @@ class Compare(ast.NodeTransformer):
         """compare the simlarity of first child node """
         pass
 
+    def term_frequency_inverse_document_frequency(self, vector):
+        # print(self.sum_vector)
+        vector_after_idf = vector * self.weight_coefficient / sum(vector)
+        return vector_after_idf
+
     @staticmethod
     def standard_scaler(vector):
         scaler = StandardScaler()
@@ -99,36 +124,37 @@ class Compare(ast.NodeTransformer):
         # print("{} {}".format("vector after standard_scaler:\n", vector_after_ss))
         return vector_after_ss
 
-    def inverse_document_frequency(self, vector):
+    def l2_norm(self, vector):
+        l2 = np.sqrt(sum(vector ** 2))
+        vector_after_l2 = vector / l2
+        return vector_after_l2
 
-        vector_after_idf = vector / self.sum_vector
-        # print("{} {}".format("vector after idf:\n", vector_after_idf))
-        return vector_after_idf
+    def cosine_distance(self, subtract_average=False, iwf=False, ss=False, average_vector=None):
+        if average_vector is None:
+            average_vector = []
+        try:
+            vector_1 = self.generic_visit(self.node_1).vector
+            vector_2 = self.generic_visit(self.node_2).vector
+        except Exception:
+            return
+        if vector_1.sum() < 15 or vector_2.sum() < 15:
+            return
 
-    def subtract_average(self, vector):
-        vector_after_subtract = vector - self.average_vector
-        # print("{} {}".format("vector after subtract_average:\n", vector_after_subtract))
-        return vector_after_subtract
+        assert len(vector_1) == len(vector_2)
+        zero_list = np.zeros(len(vector_1))
+        if (vector_1 == zero_list).all() or (vector_2 == zero_list).all():
+            return float(1) if (vector_1 == vector_2).all() else float(0)
 
-    def euclidean_distance(self, idf=False, ss=False, subtract_average=False):
-        pass
-
-    def cosine_distance(self, idf=False, ss=False, subtract_average=False):
-        assert len(self.vector_1) == len(self.vector_2)
-        zero_list = np.zeros(len(self.vector_1))
-        if (self.vector_1 == zero_list).all() or (self.vector_2 == zero_list).all():
-            return float(1) if (self.vector_1 == self.vector_2).all() else float(0)
-
-        x = self.vector_1
-        y = self.vector_2
-
-        if idf:
-            x = self.inverse_document_frequency(self.vector_1)
-            y = self.inverse_document_frequency(self.vector_2)
+        x = vector_1
+        y = vector_2
 
         if subtract_average:
-            x = self.subtract_average(x)
-            y = self.subtract_average(y)
+            x -= average_vector
+            y -= average_vector
+
+        if iwf:
+            x = self.term_frequency_inverse_document_frequency(x)
+            y = self.term_frequency_inverse_document_frequency(y)
 
         if ss:
             x = self.standard_scaler(x)
@@ -142,27 +168,16 @@ class Compare(ast.NodeTransformer):
 
         cos = sum(res[:, 0]) / (np.sqrt(sum(res[:, 1])) * np.sqrt(sum(res[:, 2])))
 
-        if -1 <= cos <= 0:
-            return 0.5 * cos + 0.5
-        else:
-            return cos
-
-    def edit_tree_distance(self):
-        pass
-
-    def visit_name(self, node):
-        pass
-
-    def visit_str(self, node):
-        pass
+        return 0.5 * cos + 0.5
 
 
 if __name__ == "__main__":
-    path_original = "C:/Users/82569/Desktop/f9a7d1_original.ipynb"
-    path_1 = "C:/Users/82569/Desktop/f9a7d1_Primary Plagiarism_1.ipynb"
-    path_2 = "C:/Users/82569/Desktop/f9a7d1_Intermediate plagiarism_1.ipynb"
-    path_3 = "C:/Users/82569/Desktop/f9a7d1_Advanced plagiarism_1.ipynb"
-    path_files = "C:/Users/82569/PycharmProjects/dstion/data/Assignment 7/Root/last"
+    path_original = "f9a7d1_original.ipynb"
+    path_1 = "f9a7d1_Primary Plagiarism_1.ipynb"
+    path_2 = "f9a7d1_Intermediate plagiarism_1.ipynb"
+    path_3 = "f9a7d1_Advanced plagiarism_1.ipynb"
+    path_files = "data/Assignment 7/Root/last"
 
     c_1 = Compare(path_original, path_1, 3, type_sum=9, path=path_files)
-    print(c_1.cosine_distance(idf=False, ss=False, subtract_average=False))
+    average_vector = get_average_vector(9, 3, path=path_files, first_child=True)
+    print(c_1.cosine_distance(iwf=False, ss=False, subtract_average=True, average_vector=average_vector))
