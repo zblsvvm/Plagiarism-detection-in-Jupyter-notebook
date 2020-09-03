@@ -1,5 +1,8 @@
 import ast
-import numpy as np
+
+"""
+Record 9-dimensional characteristic vector and 35-dimensional characteristic vector required AST node type
+"""
 
 
 def return_nodes_array(num=9):
