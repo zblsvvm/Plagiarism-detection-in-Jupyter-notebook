@@ -4,12 +4,17 @@ import os
 import extract
 import NodesTypes
 
+"""
+Calculate the average of the characteristic vectors in the group
+"""
+
 
 class CalucalateAverageVector(ast.NodeTransformer):
     def __init__(self, nodes_type_num, question_index):
         self.nodes_type = NodesTypes.return_nodes_array(nodes_type_num)
         self.length = len(self.nodes_type)
         self.question_index = question_index
+        self.all_vector = np.array([])
 
     def generic_visit(self, node):
         """
@@ -33,7 +38,15 @@ class CalucalateAverageVector(ast.NodeTransformer):
             node.vector += a.vector
         return node
 
-    def subtract_average(self, path):
+    def subtract_average(self, path, first_child=False):
+        """
+
+        :param path: Path to store student jupyter notebook assignments
+        :param first_child: Whether calculate the average value of the
+                            characteristic vector represented by the child nodes of
+                            the root node of the abstract syntax tree in the group
+        :return: the average of the characteristic vectors in the group
+        """
         files = os.listdir(path)
         sum_vector = np.zeros(self.length)
         num = 0
@@ -46,12 +59,19 @@ class CalucalateAverageVector(ast.NodeTransformer):
                     a_student_node = ast.parse(a_student_code)
                 except Exception:
                     pass
+                if first_child:
+                    for sub_node in ast.iter_child_nodes(a_student_node):
+                        a_student_node = sub_node
+                        break
+
                 a_student_vector = self.generic_visit(a_student_node).vector
                 sum_vector += a_student_vector
+                self.all_vector = np.append(self.all_vector, a_student_vector)
         average_vector = sum_vector / num
         return average_vector
+
 
 if __name__ == "__main__":
     path = "C:/Users/82569/PycharmProjects/dstion/data/Assignment 7/Root/last"
     Cal = CalucalateAverageVector(35, 3)
-    print(Cal.subtract_average(path))
+    print(Cal.subtract_average(path, first_child=False))
